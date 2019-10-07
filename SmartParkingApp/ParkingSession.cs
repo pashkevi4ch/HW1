@@ -9,6 +9,7 @@ namespace ParkingApp
         // Date and time of payment for the parking
         public DateTime? PaymentDt { get; set; }
         // Date and time of exiting the parking
+        public User ParkingUser { get; set; }
         public DateTime? ExitDt { get; set; }
         // Total cost of parking
         public decimal? TotalPayment { get; set; }

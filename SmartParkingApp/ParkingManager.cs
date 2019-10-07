@@ -13,6 +13,7 @@ namespace ParkingApp
         private List<Tariff> tariff = new List<Tariff>();
         private int capacity;
         private int freeleaveperiod;
+        private List<User> users;
 
         public ParkingSession EnterParking(string carPlateNumber)
         {
@@ -27,15 +28,15 @@ namespace ParkingApp
                     newsession.EntryDt = DateTime.Now;
                     newsession.CarPlateNumber = carPlateNumber;
                     newsession.TicketNumber = activeSessions[activeSessions.Count].TicketNumber + 1;
+                    var checkuser = users.Exists(e => e.CarPlateNumber == carPlateNumber);
+                    if (checkuser == true)
+                        newsession.ParkingUser = users.Find(e => e.CarPlateNumber == carPlateNumber);
                     activeSessions.Add(newsession);
                     return newsession;
                 }
             }
             else
                 return null;
-            /* 
-             * Link the new parking session to an existing user by car plate number (if such user exists)            
-             */
         }
 
         public bool TryLeaveParkingWithTicket(int ticketNumber, out ParkingSession session)
