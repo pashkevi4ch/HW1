@@ -9,9 +9,9 @@ namespace ParkingApp
     {
         private List<ParkingSession> activeSessions;
         private List<ParkingSession> endedSessions;
-        private Tariff tariff;
+        private List<Tariff> tariff;
         private int capacity;
-        private TimeSpan freeleaveperiod;
+        private int freeleaveperiod;
 
         public ParkingSession EnterParking(string carPlateNumber)
         {
@@ -40,7 +40,9 @@ namespace ParkingApp
         public bool TryLeaveParkingWithTicket(int ticketNumber, out ParkingSession session)
         {
             session = activeSessions.Find(e => e.TicketNumber == ticketNumber);
-            if (DateTime.Now - session.EntryDt > freeleaveperiod)
+            var sessionSpan = DateTime.Now - session.EntryDt;
+            var sessionMinutes = (sessionSpan.Days * 24) * 60 + (sessionSpan.Hours * 60) + (sessionSpan.Minutes);
+            if (sessionMinutes > freeleaveperiod)
             {
                 session.ExitDt = DateTime.Now;
                 var tmpsession = session;
@@ -57,13 +59,36 @@ namespace ParkingApp
 
         public decimal GetRemainingCost(int ticketNumber)
         {
-            /* Return the amount to be paid for the parking
-             * If a payment had already been made but additional charge was then given
-             * because of a late exit, this method should return the amount 
-             * that is yet to be paid (not the total charge)
-             */
-            throw new NotImplementedException();
-        }
+            decimal remainingCost;
+            int parkingTime;
+            var currentTime = DateTime.Now;
+            var session = activeSessions.Find(e => e.TicketNumber == ticketNumber);
+            if ((session.PaymentDt < currentTime) & (session.PaymentDt != null))
+            {
+                var tmpParkingTime = DateTime.Now - currentTime;
+                parkingTime = (tmpParkingTime.Days * 24) * 60 + (tmpParkingTime.Hours * 60) + (tmpParkingTime.Minutes);
+                if (parkingTime >= freeleaveperiod)
+                {
+                    remainingCost = tariff.First(e => e.Minutes >= parkingTime).Rate;
+                    return remainingCost;
+                }
+                else
+                    return 0;
+            }
+            else
+            {
+                var tmpParkingTime = DateTime.Now - currentTime;
+                parkingTime = (tmpParkingTime.Days * 24) * 60 + (tmpParkingTime.Hours * 60) + (tmpParkingTime.Minutes);
+                if (parkingTime >= freeleaveperiod)
+                {
+                    remainingCost = tariff.First(e => e.Minutes >= parkingTime).Rate;
+                    return remainingCost;
+                }
+                else
+                    return 0;
+            }
+           }
+
 
         public void PayForParking(int ticketNumber, decimal amount)
         {
