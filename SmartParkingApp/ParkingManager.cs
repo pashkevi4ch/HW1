@@ -1,6 +1,7 @@
 ﻿using SmartParkingApp;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace ParkingApp
@@ -9,7 +10,7 @@ namespace ParkingApp
     {
         private List<ParkingSession> activeSessions;
         private List<ParkingSession> endedSessions;
-        private List<Tariff> tariff;
+        private List<Tariff> tariff = new List<Tariff>();
         private int capacity;
         private int freeleaveperiod;
 
@@ -69,7 +70,7 @@ namespace ParkingApp
                 parkingTime = (tmpParkingTime.Days * 24) * 60 + (tmpParkingTime.Hours * 60) + (tmpParkingTime.Minutes);
                 if (parkingTime >= freeleaveperiod)
                 {
-                    remainingCost = tariff.First(e => e.Minutes >= parkingTime).Rate;
+                    remainingCost = tariff.First(e => e.Minutes <= parkingTime).Rate;
                     return remainingCost;
                 }
                 else
@@ -87,18 +88,94 @@ namespace ParkingApp
                 else
                     return 0;
             }
-           }
+        }
 
 
         public void PayForParking(int ticketNumber, decimal amount)
         {
-            /*
-             * Save the payment details in the corresponding parking session
-             * Set PaymentDt to current date and time
-             * 
-             * For simplicity we won't make any additional validation here and always
-             * assume that the parking charge is paid in full
-             */
+            var session = activeSessions.Find(e => e.TicketNumber == ticketNumber);
+            session.PaymentDt = DateTime.Now;
+            if (session.TotalPayment != null)
+            {
+                session.TotalPayment += GetRemainingCost(session.TicketNumber);
+            }
+            else
+                session.TotalPayment = GetRemainingCost(session.TicketNumber);
+        }
+
+        public void GetData()
+        {
+            var path = Directory.GetCurrentDirectory();
+            Console.WriteLine(path);
+            using (FileStream dataActiveSession = new FileStream(path + "/dataActiveSession.txt", FileMode.OpenOrCreate))
+            {
+                byte[] array = new byte[dataActiveSession.Length];
+                dataActiveSession.Read(array, 0, array.Length);
+                string fullText = System.Text.Encoding.Default.GetString(array);
+                if (fullText != "")
+                {
+                    var tmpData = fullText.Split(new char[] { ';' });
+                    foreach (var s in tmpData)
+                    {
+                        var data = s.Split(new char[] { ',' });
+                        var newActiveSession = new ParkingSession();
+                        newActiveSession.EntryDt = DateTime.Parse(data[0]);
+                        newActiveSession.PaymentDt = DateTime.Parse(data[1]);
+                        newActiveSession.ExitDt = DateTime.Parse(data[2]);
+                        newActiveSession.TotalPayment = Convert.ToDecimal(data[3]);
+                        newActiveSession.CarPlateNumber = data[4];
+                        newActiveSession.TicketNumber = Convert.ToInt32(data[5]);
+                        activeSessions.Add(newActiveSession);
+                    }
+                }
+            }
+            using (FileStream dataEndedSession = new FileStream(path + "/dataEndedSession.txt", FileMode.OpenOrCreate))
+            {
+                byte[] array = new byte[dataEndedSession.Length];
+                dataEndedSession.Read(array, 0, array.Length);
+                string fullText = System.Text.Encoding.Default.GetString(array);
+                if (fullText != "")
+                {
+                    var tmpData = fullText.Split(new char[] { ';' });
+                    foreach (var s in tmpData)
+                    {
+                        var data = s.Split(new char[] { ',' });
+                        var newEndedSession = new ParkingSession();
+                        newEndedSession.EntryDt = DateTime.Parse(data[0]);
+                        newEndedSession.PaymentDt = DateTime.Parse(data[1]);
+                        newEndedSession.ExitDt = DateTime.Parse(data[2]);
+                        newEndedSession.TotalPayment = Convert.ToDecimal(data[3]);
+                        newEndedSession.CarPlateNumber = data[4];
+                        newEndedSession.TicketNumber = Convert.ToInt32(data[5]);
+                        endedSessions.Add(newEndedSession);
+                    }
+                }
+            }
+            using (FileStream dataTariffs = new FileStream(path + "/dataTariffs.txt", FileMode.Open))
+            {
+                byte[] array = new byte[dataTariffs.Length];
+                dataTariffs.Read(array, 0, array.Length);
+                string fullText = System.Text.Encoding.Default.GetString(array);
+                var tmpData = fullText.Split(new char[] { ';' });
+                foreach (var s in tmpData)
+                {
+                    if (s != "")
+                    {
+                        var data = s.Split(new char[] { ',' });
+                        var newTariff = new Tariff();
+                        newTariff.Minutes = Convert.ToInt32(data[0]);
+                        newTariff.Rate = Convert.ToDecimal(data[1]);
+                        tariff.Add(newTariff);
+                    }
+                }
+            }
+            using (FileStream dataCapacity = new FileStream(path + "/dataCapacity.txt", FileMode.Open))
+            {
+                byte[] array = new byte[dataCapacity.Length];
+                dataCapacity.Read(array, 0, array.Length);
+                string fullText = System.Text.Encoding.Default.GetString(array);
+                capacity = Convert.ToInt32(fullText);
+            }
         }
 
         /* ADDITIONAL TASK 2 */

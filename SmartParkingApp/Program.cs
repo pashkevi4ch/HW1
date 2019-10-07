@@ -6,7 +6,8 @@ namespace ParkingApp
     {
         static void Main(string[] args)
         {
-            Console.WriteLine(5 ^ 2);
+            var pm = new ParkingManager();
+            pm.GetData();
         }
 
     }
