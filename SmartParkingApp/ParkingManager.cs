@@ -182,37 +182,57 @@ namespace ParkingApp
         /* ADDITIONAL TASK 2 */
         public bool TryLeaveParkingByCarPlateNumber(string carPlateNumber, out ParkingSession session)
         {
-            /* There are 3 scenarios for this method:
-            
-            1. The user has not made any payments but leaves the parking within the free leave period
-            from EntryDt:
-               1.1 Complete the parking session by setting the ExitDt property
-               1.2 Move the session from the list of active sessions to the list of past sessions             * 
-               1.3 return true and the completed parking session object in the out parameter
-            
-            2. The user has already paid for the parking session (session.PaymentDt != null):
-            Check that the current time is within the free leave period from session.PaymentDt
-               2.1. If yes, complete the session in the same way as in the previous scenario
-               2.2. If no, return false, session = null
-
-            3. The user has not paid for the parking session:            
-            3a) If the session has a connected user (see advanced task from the EnterParking method):
-            ExitDt = PaymentDt = current date time; 
-            TotalPayment according to the tariff table:            
-            
-            IMPORTANT: before calculating the parking charge, subtract FreeLeavePeriod 
-            from the total number of minutes passed since entry
-            i.e. if the registered visitor enters the parking at 10:05
-            and attempts to leave at 10:25, no charge should be made, otherwise it would be unfair
-            to loyal customers, because an ordinary printed ticket could be inserted in the payment
-            kiosk at 10:15 (no charge) and another 15 free minutes would be given (up to 10:30)
-
-            return the completed session in the out parameter and true in the main return value
-
-            3b) If there is no connected user, set session = null, return false (the visitor
-            has to insert the parking ticket and pay at the kiosk)
-            */
-            throw new NotImplementedException();
+            session = activeSessions.Find(e => e.CarPlateNumber == carPlateNumber);
+            var remainingCost = GetRemainingCost(session.TicketNumber);
+            if (session.PaymentDt == null & remainingCost == 0)
+            {
+                session.ExitDt = DateTime.Now;
+                activeSessions.Remove(session);
+                endedSessions.Add(session);
+                return true;
+            }
+            else
+            {
+                if (session.PaymentDt != null)
+                {
+                    if (remainingCost == 0)
+                    {
+                        session.ExitDt = DateTime.Now;
+                        activeSessions.Remove(session);
+                        endedSessions.Add(session);
+                        return true;
+                    }
+                    else
+                    {
+                        session = null;
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (session.PaymentDt != null)
+                    {
+                        if (session.ParkingUser != null)
+                        {
+                            session.ExitDt = DateTime.Now;
+                            session.PaymentDt = session.ExitDt;
+                            session.EntryDt.AddMinutes(15);
+                            var userRemainingCost = GetRemainingCost(session.TicketNumber);
+                            session.TotalPayment = remainingCost;
+                            activeSessions.Remove(session);
+                            endedSessions.Add(session);
+                            return true;
+                        }
+                        else
+                        {
+                            session = null;
+                            return false;
+                        }
+                    }
+                }
+            }
+            session = null;
+            return false;
         }
     }
 }
