@@ -101,11 +101,9 @@ namespace ParkingApp
             var session = activeSessions.Find(e => e.TicketNumber == ticketNumber);
             session.PaymentDt = DateTime.Now;
             if (session.TotalPayment != null)
-            {
-                session.TotalPayment += GetRemainingCost(session.TicketNumber);
-            }
+                session.TotalPayment += amount;
             else
-                session.TotalPayment = GetRemainingCost(session.TicketNumber);
+                session.TotalPayment = amount;
         }
 
 
