@@ -8,12 +8,11 @@ namespace ParkingApp
 {
     class ParkingManager
     {
-        private List<ParkingSession> activeSessions;
-        private List<ParkingSession> endedSessions;
+        private List<ParkingSession> activeSessions = new List<ParkingSession>();
+        private List<ParkingSession> endedSessions = new List<ParkingSession>();
         private List<Tariff> tariff = new List<Tariff>();
         private int capacity;
-        private int freeleaveperiod;
-        private List<User> users;
+        private List<User> users = new List<User>();
 
         public ParkingSession EnterParking(string carPlateNumber)
         {
@@ -27,11 +26,15 @@ namespace ParkingApp
                     var newsession = new ParkingSession();
                     newsession.EntryDt = DateTime.Now;
                     newsession.CarPlateNumber = carPlateNumber;
-                    newsession.TicketNumber = activeSessions[activeSessions.Count].TicketNumber + 1;
+                    if (activeSessions.Count != 0)
+                        newsession.TicketNumber = activeSessions[activeSessions.Count - 1].TicketNumber + 1;
+                    else
+                        newsession.TicketNumber = 1;
                     var checkuser = users.Exists(e => e.CarPlateNumber == carPlateNumber);
                     if (checkuser == true)
                         newsession.ParkingUser = users.Find(e => e.CarPlateNumber == carPlateNumber);
                     activeSessions.Add(newsession);
+                    SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
                     return newsession;
                 }
             }
@@ -39,17 +42,17 @@ namespace ParkingApp
                 return null;
         }
 
+
         public bool TryLeaveParkingWithTicket(int ticketNumber, out ParkingSession session)
         {
             session = activeSessions.Find(e => e.TicketNumber == ticketNumber);
-            var sessionSpan = DateTime.Now - session.EntryDt;
-            var sessionMinutes = (sessionSpan.Days * 24) * 60 + (sessionSpan.Hours * 60) + (sessionSpan.Minutes);
-            if (sessionMinutes > freeleaveperiod)
+            if (GetRemainingCost(session.TicketNumber) == 0)
             {
                 session.ExitDt = DateTime.Now;
-                var tmpsession = session;
-                activeSessions.Remove(activeSessions.Find(e => e.TicketNumber == ticketNumber));
-                endedSessions.Add(tmpsession);
+                activeSessions.Remove(session);
+                SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
+                endedSessions.Add(session);
+                SessionFileRewriter(endedSessions, "/dataEndedSession.txt");
                 return true;
             }
             else
@@ -59,35 +62,36 @@ namespace ParkingApp
             }
         }
 
+
         public decimal GetRemainingCost(int ticketNumber)
         {
             decimal remainingCost;
             int parkingTime;
+            int? exitingTime;
             var currentTime = DateTime.Now;
             var session = activeSessions.Find(e => e.TicketNumber == ticketNumber);
-            if ((session.PaymentDt < currentTime) & (session.PaymentDt != null))
+
+            if (session.PaymentDt != null)
             {
-                var tmpParkingTime = DateTime.Now - currentTime;
-                parkingTime = (tmpParkingTime.Days * 24) * 60 + (tmpParkingTime.Hours * 60) + (tmpParkingTime.Minutes);
-                if (parkingTime >= freeleaveperiod)
+                var tmpExitingTime = currentTime - session.PaymentDt;
+                exitingTime = (tmpExitingTime?.Days * 24) * 60 + (tmpExitingTime?.Hours * 60) + (tmpExitingTime?.Minutes);
+                if (exitingTime < tariff[tariff.Count].Minutes)
                 {
-                    remainingCost = tariff.First(e => e.Minutes <= parkingTime).Rate;
+                    remainingCost = tariff.First(e => e.Minutes <= exitingTime).Rate;
                     return remainingCost;
                 }
                 else
-                    return 0;
+                {
+                    remainingCost = tariff[tariff.Count].Rate;
+                    return remainingCost;
+                }
             }
             else
             {
-                var tmpParkingTime = DateTime.Now - currentTime;
+                var tmpParkingTime = currentTime - session.EntryDt;
                 parkingTime = (tmpParkingTime.Days * 24) * 60 + (tmpParkingTime.Hours * 60) + (tmpParkingTime.Minutes);
-                if (parkingTime >= freeleaveperiod)
-                {
-                    remainingCost = tariff.First(e => e.Minutes >= parkingTime).Rate;
-                    return remainingCost;
-                }
-                else
-                    return 0;
+                remainingCost = tariff.First(e => e.Minutes <= parkingTime).Rate;
+                return remainingCost;
             }
         }
 
@@ -104,6 +108,7 @@ namespace ParkingApp
                 session.TotalPayment = GetRemainingCost(session.TicketNumber);
         }
 
+
         public void GetData()
         {
             var path = Directory.GetCurrentDirectory();
@@ -113,44 +118,16 @@ namespace ParkingApp
                 byte[] array = new byte[dataActiveSession.Length];
                 dataActiveSession.Read(array, 0, array.Length);
                 string fullText = System.Text.Encoding.Default.GetString(array);
-                if (fullText != "")
-                {
-                    var tmpData = fullText.Split(new char[] { ';' });
-                    foreach (var s in tmpData)
-                    {
-                        var data = s.Split(new char[] { ',' });
-                        var newActiveSession = new ParkingSession();
-                        newActiveSession.EntryDt = DateTime.Parse(data[0]);
-                        newActiveSession.PaymentDt = DateTime.Parse(data[1]);
-                        newActiveSession.ExitDt = DateTime.Parse(data[2]);
-                        newActiveSession.TotalPayment = Convert.ToDecimal(data[3]);
-                        newActiveSession.CarPlateNumber = data[4];
-                        newActiveSession.TicketNumber = Convert.ToInt32(data[5]);
-                        activeSessions.Add(newActiveSession);
-                    }
-                }
+                var activeSessions = SessionParser(fullText);
+                CheckUser(activeSessions);
             }
             using (FileStream dataEndedSession = new FileStream(path + "/dataEndedSession.txt", FileMode.OpenOrCreate))
             {
                 byte[] array = new byte[dataEndedSession.Length];
                 dataEndedSession.Read(array, 0, array.Length);
                 string fullText = System.Text.Encoding.Default.GetString(array);
-                if (fullText != "")
-                {
-                    var tmpData = fullText.Split(new char[] { ';' });
-                    foreach (var s in tmpData)
-                    {
-                        var data = s.Split(new char[] { ',' });
-                        var newEndedSession = new ParkingSession();
-                        newEndedSession.EntryDt = DateTime.Parse(data[0]);
-                        newEndedSession.PaymentDt = DateTime.Parse(data[1]);
-                        newEndedSession.ExitDt = DateTime.Parse(data[2]);
-                        newEndedSession.TotalPayment = Convert.ToDecimal(data[3]);
-                        newEndedSession.CarPlateNumber = data[4];
-                        newEndedSession.TicketNumber = Convert.ToInt32(data[5]);
-                        endedSessions.Add(newEndedSession);
-                    }
-                }
+                endedSessions = SessionParser(fullText);
+                CheckUser(endedSessions);
             }
             using (FileStream dataTariffs = new FileStream(path + "/dataTariffs.txt", FileMode.Open))
             {
@@ -177,9 +154,83 @@ namespace ParkingApp
                 string fullText = System.Text.Encoding.Default.GetString(array);
                 capacity = Convert.ToInt32(fullText);
             }
+            using (FileStream dataUsers = new FileStream(path + "/dataUsers.txt", FileMode.Open))
+            {
+                byte[] array = new byte[dataUsers.Length];
+                dataUsers.Read(array, 0, array.Length);
+                string fullText = System.Text.Encoding.Default.GetString(array);
+                var tmpData = fullText.Split(new char[] { ';' });
+                foreach (var s in tmpData)
+                {
+                    if (s != "")
+                    {
+                        var data = s.Split(new char[] { ',' });
+                        var newUser = new User();
+                        newUser.Name = data[0];
+                        newUser.CarPlateNumber = data[1];
+                        newUser.Phone = data[2];
+                        users.Add(newUser);
+                    }
+                }
+            }
         }
 
-        /* ADDITIONAL TASK 2 */
+
+        private void SessionFileRewriter(List<ParkingSession> sessions, string file)
+        {
+            var path = Directory.GetCurrentDirectory();
+            var newText = "";
+            foreach (var s in sessions)
+            {
+                newText += s.EntryDt + "," + s.PaymentDt + "," + s.ExitDt + "," + s.TotalPayment + "," + s.CarPlateNumber + "," + s.TicketNumber + ";";
+            }
+            using (StreamWriter sw = new StreamWriter(path + file, false, System.Text.Encoding.Default))
+            {
+                sw.WriteLine(newText);
+            }
+        }
+
+
+        private List<ParkingSession> SessionParser(string fullText)
+        {
+            List<ParkingSession> parkingSessions = new List<ParkingSession>();
+            if (fullText != "")
+            {
+                var tmpData = fullText.Split(new char[] { ';' });
+                foreach (var s in tmpData)
+                {
+                    var data = s.Split(new char[] { ',' });
+                    var newSession = new ParkingSession();
+                    if (data[0] != "")
+                        newSession.EntryDt = DateTime.Parse(data[0]);
+                    if (data[1] != "")
+                        newSession.PaymentDt = DateTime.Parse(data[1]);
+                    if (data[2] != "")
+                        newSession.ExitDt = DateTime.Parse(data[2]);
+                    if (data[3] != "")
+                        newSession.TotalPayment = Convert.ToDecimal(data[3]);
+                    newSession.CarPlateNumber = data[4];
+                    newSession.TicketNumber = Convert.ToInt32(data[5]);
+                    parkingSessions.Add(newSession);
+                }
+            }
+            return parkingSessions;
+        }
+
+
+        private void CheckUser(List<ParkingSession> sessions)
+        {
+            foreach (var s in sessions)
+            {
+                foreach (var u in users)
+                {
+                    if (u.CarPlateNumber == s.CarPlateNumber)
+                        s.ParkingUser = u;
+                }
+            }
+        }
+
+
         public bool TryLeaveParkingByCarPlateNumber(string carPlateNumber, out ParkingSession session)
         {
             session = activeSessions.Find(e => e.CarPlateNumber == carPlateNumber);
@@ -188,7 +239,9 @@ namespace ParkingApp
             {
                 session.ExitDt = DateTime.Now;
                 activeSessions.Remove(session);
+                SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
                 endedSessions.Add(session);
+                SessionFileRewriter(endedSessions, "/dataEndedSession.txt");
                 return true;
             }
             else
@@ -199,7 +252,9 @@ namespace ParkingApp
                     {
                         session.ExitDt = DateTime.Now;
                         activeSessions.Remove(session);
+                        SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
                         endedSessions.Add(session);
+                        SessionFileRewriter(endedSessions, "/dataEndedSession.txt");
                         return true;
                     }
                     else
@@ -210,29 +265,24 @@ namespace ParkingApp
                 }
                 else
                 {
-                    if (session.PaymentDt != null)
+                    if (session.ParkingUser != null)
                     {
-                        if (session.ParkingUser != null)
-                        {
-                            session.ExitDt = DateTime.Now;
-                            session.PaymentDt = session.ExitDt;
-                            session.EntryDt.AddMinutes(15);
-                            var userRemainingCost = GetRemainingCost(session.TicketNumber);
-                            session.TotalPayment = remainingCost;
-                            activeSessions.Remove(session);
-                            endedSessions.Add(session);
-                            return true;
-                        }
-                        else
-                        {
-                            session = null;
-                            return false;
-                        }
+                        session.ExitDt = DateTime.Now;
+                        session.PaymentDt = session.ExitDt;
+                        session.EntryDt.AddMinutes(15);
+                        var userRemainingCost = GetRemainingCost(session.TicketNumber);
+                        session.TotalPayment = remainingCost;
+                        activeSessions.Remove(session);
+                        endedSessions.Add(session);
+                        return true;
+                    }
+                    else
+                    {
+                        session = null;
+                        return false;
                     }
                 }
             }
-            session = null;
-            return false;
         }
     }
 }
