@@ -77,7 +77,7 @@ namespace ParkingApp
                 exitingTime = (tmpExitingTime?.Days * 24) * 60 + (tmpExitingTime?.Hours * 60) + (tmpExitingTime?.Minutes);
                 if (exitingTime < tariff[tariff.Count].Minutes)
                 {
-                    remainingCost = tariff.First(e => e.Minutes <= exitingTime).Rate;
+                    remainingCost = tariff.First(e => e.Minutes >= exitingTime).Rate;
                     return remainingCost;
                 }
                 else
@@ -90,7 +90,7 @@ namespace ParkingApp
             {
                 var tmpParkingTime = currentTime - session.EntryDt;
                 parkingTime = (tmpParkingTime.Days * 24) * 60 + (tmpParkingTime.Hours * 60) + (tmpParkingTime.Minutes);
-                remainingCost = tariff.First(e => e.Minutes <= parkingTime).Rate;
+                remainingCost = tariff.First(e => e.Minutes >= parkingTime).Rate;
                 return remainingCost;
             }
         }
@@ -186,7 +186,7 @@ namespace ParkingApp
             }
             using (StreamWriter sw = new StreamWriter(path + file, false, System.Text.Encoding.Default))
             {
-                sw.WriteLine(newText);
+                sw.Write("\n" + newText);
             }
         }
 
@@ -199,19 +199,22 @@ namespace ParkingApp
                 var tmpData = fullText.Split(new char[] { ';' });
                 foreach (var s in tmpData)
                 {
-                    var data = s.Split(new char[] { ',' });
-                    var newSession = new ParkingSession();
-                    if (data[0] != "")
-                        newSession.EntryDt = DateTime.Parse(data[0]);
-                    if (data[1] != "")
-                        newSession.PaymentDt = DateTime.Parse(data[1]);
-                    if (data[2] != "")
-                        newSession.ExitDt = DateTime.Parse(data[2]);
-                    if (data[3] != "")
-                        newSession.TotalPayment = Convert.ToDecimal(data[3]);
-                    newSession.CarPlateNumber = data[4];
-                    newSession.TicketNumber = Convert.ToInt32(data[5]);
-                    parkingSessions.Add(newSession);
+                    if (s != "")
+                    {
+                        var data = s.Split(new char[] { ',' });
+                        var newSession = new ParkingSession();
+                        if (data[0] != "")
+                            newSession.EntryDt = DateTime.Parse(data[0]);
+                        if (data[1] != "")
+                            newSession.PaymentDt = DateTime.Parse(data[1]);
+                        if (data[2] != "")
+                            newSession.ExitDt = DateTime.Parse(data[2]);
+                        if (data[3] != "")
+                            newSession.TotalPayment = Convert.ToDecimal(data[3]);
+                        newSession.CarPlateNumber = data[4];
+                        newSession.TicketNumber = Convert.ToInt32(data[5]);
+                        parkingSessions.Add(newSession);
+                    }
                 }
             }
             return parkingSessions;
