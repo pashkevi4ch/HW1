@@ -9,6 +9,9 @@ namespace ParkingApp
             ParkingSession session;
             var pm = new ParkingManager();
             pm.GetData();
+            pm.EnterParking("123");
+            pm.EnterParking("124");
+            pm.EnterParking("125");
             var check = pm.TryLeaveParkingByCarPlateNumber("125", out session);
             Console.WriteLine(check + "" + session.TicketNumber + "" + session.CarPlateNumber + "" + session.EntryDt);
         }
