@@ -109,17 +109,15 @@ namespace ParkingApp
 
         public void GetData()
         {
-            var path = Directory.GetCurrentDirectory();
-            Console.WriteLine(path);
-            using (FileStream dataActiveSession = new FileStream(path + "/dataActiveSession.txt", FileMode.OpenOrCreate))
+            using (FileStream dataActiveSession = new FileStream(@"../../../dataActiveSession.txt", FileMode.OpenOrCreate))
             {
                 byte[] array = new byte[dataActiveSession.Length];
                 dataActiveSession.Read(array, 0, array.Length);
                 string fullText = System.Text.Encoding.Default.GetString(array);
-                var activeSessions = SessionParser(fullText);
+                activeSessions = SessionParser(fullText);
                 CheckUser(activeSessions);
             }
-            using (FileStream dataEndedSession = new FileStream(path + "/dataEndedSession.txt", FileMode.OpenOrCreate))
+            using (FileStream dataEndedSession = new FileStream(@"../../../dataEndedSession.txt", FileMode.OpenOrCreate))
             {
                 byte[] array = new byte[dataEndedSession.Length];
                 dataEndedSession.Read(array, 0, array.Length);
@@ -127,7 +125,7 @@ namespace ParkingApp
                 endedSessions = SessionParser(fullText);
                 CheckUser(endedSessions);
             }
-            using (FileStream dataTariffs = new FileStream(path + "/dataTariffs.txt", FileMode.Open))
+            using (FileStream dataTariffs = new FileStream(@"../../../dataTariffs.txt", FileMode.Open))
             {
                 byte[] array = new byte[dataTariffs.Length];
                 dataTariffs.Read(array, 0, array.Length);
@@ -145,14 +143,14 @@ namespace ParkingApp
                     }
                 }
             }
-            using (FileStream dataCapacity = new FileStream(path + "/dataCapacity.txt", FileMode.Open))
+            using (FileStream dataCapacity = new FileStream(@"../../../dataCapacity.txt", FileMode.Open))
             {
                 byte[] array = new byte[dataCapacity.Length];
                 dataCapacity.Read(array, 0, array.Length);
                 string fullText = System.Text.Encoding.Default.GetString(array);
                 capacity = Convert.ToInt32(fullText);
             }
-            using (FileStream dataUsers = new FileStream(path + "/dataUsers.txt", FileMode.Open))
+            using (FileStream dataUsers = new FileStream(@"../../../dataUsers.txt", FileMode.Open))
             {
                 byte[] array = new byte[dataUsers.Length];
                 dataUsers.Read(array, 0, array.Length);
@@ -174,17 +172,16 @@ namespace ParkingApp
         }
 
 
-        private void SessionFileRewriter(List<ParkingSession> sessions, string file)
+        private void SessionFileRewriter(List<ParkingSession> sessions, string filename)
         {
-            var path = Directory.GetCurrentDirectory();
             var newText = "";
             foreach (var s in sessions)
             {
                 newText += s.EntryDt + "," + s.PaymentDt + "," + s.ExitDt + "," + s.TotalPayment + "," + s.CarPlateNumber + "," + s.TicketNumber + ";";
             }
-            using (StreamWriter sw = new StreamWriter(path + file, false, System.Text.Encoding.Default))
+            using (StreamWriter sw = new StreamWriter(@"../../.." + filename, false, System.Text.Encoding.Default))
             {
-                sw.Write("\n" + newText);
+                sw.Write(newText);
             }
         }
 
