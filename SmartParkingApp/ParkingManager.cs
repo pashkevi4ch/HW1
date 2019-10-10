@@ -75,14 +75,14 @@ namespace ParkingApp
             {
                 var tmpExitingTime = currentTime - session.PaymentDt;
                 exitingTime = (tmpExitingTime?.Days * 24) * 60 + (tmpExitingTime?.Hours * 60) + (tmpExitingTime?.Minutes);
-                if (exitingTime < tariff[tariff.Count].Minutes)
+                if (exitingTime < tariff[tariff.Count - 1].Minutes)
                 {
                     remainingCost = tariff.First(e => e.Minutes >= exitingTime).Rate;
                     return remainingCost;
                 }
                 else
                 {
-                    remainingCost = tariff[tariff.Count].Rate;
+                    remainingCost = tariff[tariff.Count - 1].Rate;
                     return remainingCost;
                 }
             }
@@ -236,6 +236,7 @@ namespace ParkingApp
             if (session.PaymentDt == null & remainingCost == 0)
             {
                 session.ExitDt = DateTime.Now;
+                PayForParking(session.TicketNumber, 0);
                 activeSessions.Remove(session);
                 SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
                 endedSessions.Add(session);
