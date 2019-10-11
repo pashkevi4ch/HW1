@@ -23,19 +23,18 @@ namespace ParkingApp
                     return null;
                 else
                 {
-                    var newsession = new ParkingSession();
-                    newsession.EntryDt = DateTime.Now;
-                    newsession.CarPlateNumber = carPlateNumber;
+                    var newSession = new ParkingSession();
+                    newSession.EntryDt = DateTime.Now;
+                    newSession.CarPlateNumber = carPlateNumber;
                     if (activeSessions.Count != 0)
-                        newsession.TicketNumber = activeSessions[activeSessions.Count - 1].TicketNumber + 1;
-                    else
-                        newsession.TicketNumber = 1;
+                        newSession.TicketNumber = activeSessions[activeSessions.Count - 1].TicketNumber + 1;
+                        newSession.TicketNumber = 1;
                     var checkuser = users.Exists(e => e.CarPlateNumber == carPlateNumber);
                     if (checkuser == true)
-                        newsession.ParkingUser = users.Find(e => e.CarPlateNumber == carPlateNumber);
-                    activeSessions.Add(newsession);
+                        newSession.ParkingUser = users.Find(e => e.CarPlateNumber == carPlateNumber);
+                    activeSessions.Add(newSession);
                     SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
-                    return newsession;
+                    return newSession;
                 }
             }
             else
@@ -236,7 +235,6 @@ namespace ParkingApp
             if (session.PaymentDt == null & remainingCost == 0)
             {
                 session.ExitDt = DateTime.Now;
-                PayForParking(session.TicketNumber, 0);
                 activeSessions.Remove(session);
                 SessionFileRewriter(activeSessions, "/dataActiveSession.txt");
                 endedSessions.Add(session);
